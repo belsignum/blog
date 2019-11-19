@@ -157,6 +157,7 @@ call_user_func(
                     'renderType' => 'selectMultipleSideBySide',
                     'multiple' => 1,
                     'foreign_table' => 'tx_blog_domain_model_author',
+					'foreign_table_where' => ' AND tx_blog_domain_model_author.pid = ###PAGE_TSCONFIG_ID### ORDER BY tx_blog_domain_model_author.name',
                     'MM' => 'tx_blog_post_author_mm',
                     'minitems' => 0,
                     'maxitems' => 99999,
