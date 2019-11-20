@@ -24,6 +24,7 @@ namespace T3G\AgencyPack\Blog\Controller;
 
 use T3G\AgencyPack\Blog\Domain\Model\Author;
 use T3G\AgencyPack\Blog\Domain\Model\Category;
+use T3G\AgencyPack\Blog\Domain\Model\Post;
 use T3G\AgencyPack\Blog\Domain\Model\Tag;
 use T3G\AgencyPack\Blog\Domain\Repository\AuthorRepository;
 use T3G\AgencyPack\Blog\Domain\Repository\CategoryRepository;
@@ -32,6 +33,8 @@ use T3G\AgencyPack\Blog\Domain\Repository\TagRepository;
 use T3G\AgencyPack\Blog\Service\CacheService;
 use T3G\AgencyPack\Blog\Service\MetaService;
 use T3G\AgencyPack\Blog\Utility\ArchiveUtility;
+use TYPO3\CMS\Core\Resource\ResourceFactory;
+use TYPO3\CMS\Extbase\Domain\Model\FileReference;
 use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
 use TYPO3\CMS\Extbase\Mvc\View\ViewInterface;
 use TYPO3\CMS\Extbase\Utility\LocalizationUtility;
@@ -65,6 +68,11 @@ class PostController extends ActionController
      * @var CacheService
      */
     protected $blogCacheService;
+
+	/**
+	 * @var ResourceFactory
+	 */
+	protected $resourceFactory;
 
     /**
      * @param CategoryRepository $categoryRepository
@@ -112,7 +120,11 @@ class PostController extends ActionController
      */
     protected function initializeView(ViewInterface $view)
     {
-        parent::initializeView($view);
+    	parent::initializeView($view);
+		if($GLOBALS['TSFE']->sys_language_uid > 0)
+		{
+			$this->resourceFactory = ResourceFactory::getInstance();
+		}
         if ($this->request->getFormat() === 'rss') {
             $action = '.' . $this->request->getControllerActionName();
             $arguments = [];
@@ -159,7 +171,8 @@ class PostController extends ActionController
             ? $this->postRepository->findAll()
             : $this->postRepository->findAllWithLimit($maximumItems);
 
-        foreach ($posts as $post) {
+        foreach ($posts as $_ => $post) {
+        	$this->getMediaFileReferenceOverlay($post);
             $this->blogCacheService->addTagsForPost($post);
         }
 
@@ -185,7 +198,8 @@ class PostController extends ActionController
         } else {
             $timestamp = mktime(0, 0, 0, $month, 1, $year);
             $posts = $this->postRepository->findByMonthAndYear($year, $month);
-            foreach ($posts as $post) {
+            foreach ($posts as $_ => $post) {
+				$this->getMediaFileReferenceOverlay($post);
                 $this->blogCacheService->addTagsForPost($post);
             }
             $this->view->assignMultiple([
@@ -236,7 +250,8 @@ class PostController extends ActionController
             MetaService::set(MetaService::META_TITLE, $category->getTitle());
             MetaService::set(MetaService::META_DESCRIPTION, $category->getDescription());
             MetaService::set(MetaService::META_CATEGORIES, [$category->getTitle()]);
-            foreach ($posts as $post) {
+            foreach ($posts as $_ => $post) {
+				$this->getMediaFileReferenceOverlay($post);
                 $this->blogCacheService->addTagsForPost($post);
             }
         } else {
@@ -260,7 +275,7 @@ class PostController extends ActionController
             $this->view->assign('author', $author);
             MetaService::set(MetaService::META_TITLE, $author->getName());
             MetaService::set(MetaService::META_DESCRIPTION, $author->getBio());
-            foreach ($posts as $post) {
+            foreach ($posts as $_ => $post) {
                 $this->blogCacheService->addTagsForPost($post);
             }
         } else {
@@ -285,7 +300,8 @@ class PostController extends ActionController
             MetaService::set(MetaService::META_TITLE, $tag->getTitle());
             MetaService::set(MetaService::META_DESCRIPTION, $tag->getDescription());
             MetaService::set(MetaService::META_TAGS, [$tag->getTitle()]);
-            foreach ($posts as $post) {
+            foreach ($posts as $_ => $post) {
+				$this->getMediaFileReferenceOverlay($post);
                 $this->blogCacheService->addTagsForPost($post);
             }
         } else {
@@ -308,6 +324,7 @@ class PostController extends ActionController
         $post = $this->postRepository->findCurrentPost();
         $this->view->assign('post', $post);
         if ($post instanceof Post) {
+			$this->getMediaFileReferenceOverlay($post);
             $this->blogCacheService->addTagsForPost($post);
         }
     }
@@ -320,6 +337,7 @@ class PostController extends ActionController
         $post = $this->postRepository->findCurrentPost();
         $this->view->assign('post', $post);
         if ($post instanceof Post) {
+			$this->getMediaFileReferenceOverlay($post);
             $this->blogCacheService->addTagsForPost($post);
         }
     }
@@ -330,12 +348,41 @@ class PostController extends ActionController
     public function relatedPostsAction()
     {
         $post = $this->postRepository->findCurrentPost();
+		$this->getMediaFileReferenceOverlay($post);
         $posts = $this->postRepository->findRelatedPosts(
             $this->settings['relatedPosts']['categoryMultiplier'],
             $this->settings['relatedPosts']['tagMultiplier'],
             $this->settings['relatedPosts']['limit']
         );
+        foreach ($posts as $_ => $post)
+		{
+			$this->getMediaFileReferenceOverlay($post);
+		}
         $this->view->assign('currentPost', $post);
         $this->view->assign('posts', $posts);
     }
+
+	/**
+	 * Work around for Typo3 V8.7 to get localized FAL image
+	 *
+	 * @param Post $post
+	 */
+    protected function getMediaFileReferenceOverlay(Post $post)
+	{
+		if(
+			$GLOBALS['TSFE']->sys_language_uid > 0
+			&& $fileReferenceUid = $this->postRepository->
+							getTranslatedMediaReference($post->getUid())
+		)
+		{
+			$falFileReference = $this->resourceFactory->getFileReferenceObject($fileReferenceUid);
+			$post->removeAllMedia();
+			/** @var FileReference $fileReference */
+			$fileReference = $this->objectManager->get(FileReference::class);
+			$fileReference->setOriginalResource($falFileReference);
+			$post->addMedia($fileReference);
+		}
+	}
+
+
 }

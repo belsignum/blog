@@ -469,6 +469,24 @@ class Post extends AbstractEntity
         return $this->media;
     }
 
+	/**
+	 * removes all media file references
+	 */
+    public function removeAllMedia()
+	{
+		$this->media->removeAll($this->getMedia());
+	}
+
+    /**
+	 * Adds a media file reference
+	 *
+     * @param \TYPO3\CMS\Extbase\Domain\Model\FileReference $media
+     */
+    public function addMedia($media)
+    {
+        $this->media->attach($media);
+    }
+
     /**
      * @param \TYPO3\CMS\Extbase\Persistence\ObjectStorage<\TYPO3\CMS\Extbase\Domain\Model\FileReference> $media
      */

@@ -404,4 +404,45 @@ class PostRepository extends Repository
 
         return $pids;
     }
+
+	/**
+	 * Get translated media file reference uid
+	 *
+	 * @param int $pageUid
+	 * @return int|null
+	 */
+    public function getTranslatedMediaReference(int $pageUid)
+	{
+		$queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
+									  ->getQueryBuilderForTable('sys_file_reference');
+
+		$conditions = $queryBuilder->expr()->andX(
+			$queryBuilder->expr()->eq(
+				'pid',
+				$queryBuilder->createNamedParameter($pageUid, \PDO::PARAM_INT)
+			),
+			$queryBuilder->expr()->in(
+				'sys_language_uid',
+				$queryBuilder->createNamedParameter($GLOBALS['TSFE']->sys_language_uid, \PDO::PARAM_INT)
+			),
+			$queryBuilder->expr()->in(
+				'tablenames',
+				$queryBuilder->createNamedParameter('pages_language_overlay', \PDO::PARAM_STR)
+			),
+			$queryBuilder->expr()->in(
+				'fieldname',
+				$queryBuilder->createNamedParameter('media', \PDO::PARAM_STR)
+			)
+		);
+
+		$result = $queryBuilder
+			->select(
+				'uid'
+			)
+			->from('sys_file_reference')
+			->where($conditions)
+			->execute()
+			->fetch();
+		return $result['uid'];
+	}
 }
