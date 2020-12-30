@@ -40,7 +40,7 @@ class CommentValidator extends AbstractValidator
             if (trim($value->getEmail()) === '') {
                 $this->addError('The email is required', 1467650565);
             }
-            if (!GeneralUtility::validEmail(strtolower(trim($value->getEmail()))) {
+            if (!GeneralUtility::validEmail(strtolower(trim($value->getEmail())))) {
                 $this->addError('The email address has an invalid format', 1467650566);
             }
             if (trim($value->getComment()) === '') {
